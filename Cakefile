@@ -44,7 +44,7 @@ task 'watch', 'Watch prod source files and build changes', ->
 task 'build', 'Build a single JavaScript file from prod files', ->
     util.log "Building #{prodTargetJsFile}"
     appContents = new Array
-    finished = new Array prodCoffeeFiles.length
+    remaining = prodCoffeeFiles.length
 
     # compile separate coffee files first
     for file, index in prodCoffeeFiles then do (file, index) ->
@@ -58,11 +58,7 @@ task 'build', 'Build a single JavaScript file from prod files', ->
             handleError(err) if err
             appContents[index] = fileContents
             util.log "[#{index + 1}] Compiled #{file}.js"
-            finished[index] = true
-            process() if done()
-
-    done = ->
-        (i for i in finished when i?).length == prodCoffeeFiles.length
+            process() if --remaining == 0
 
     process = ->
         fs.writeFile prodTargetJsFile
