@@ -23,6 +23,13 @@ That's it.  Hack away and run your test suite with `SpecRunner.html`.  There are
 
 for a few short descriptions.
 
+## Note
+
+Each CoffeeScript file is compiled to a separate top level scope, the compiled js files are then appended to a single js file. So don't forget to export your functions.
+
+    root = exports or window
+    root.YOUR_FUNCTON_NAME = YOUR_FUNCTION_NAME
+
 ## More Info
 
 I've written a couple of posts about this skeleton project where you can learn more about why and how you can make use of it.

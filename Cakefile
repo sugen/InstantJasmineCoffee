@@ -14,7 +14,7 @@ prodTargetCoffeeFile = "#{prodSrcCoffeeDir}/#{prodTargetFileName}.coffee"
 prodTargetJsFile     = "#{prodTargetJsDir}/#{prodTargetFileName}.js"
 prodTargetJsMinFile  = "#{prodTargetJsDir}/#{prodTargetFileName}.min.js"
 
-prodCoffeeOpts = "--bare --output #{prodTargetJsDir} --compile #{prodTargetCoffeeFile}"
+prodCoffeeOpts = "--output #{prodTargetJsDir} --compile"
 testCoffeeOpts = "--output #{testTargetJsDir}"
 
 prodCoffeeFiles = [
@@ -43,33 +43,40 @@ task 'watch', 'Watch prod source files and build changes', ->
 
 task 'build', 'Build a single JavaScript file from prod files', ->
     util.log "Building #{prodTargetJsFile}"
-    appContents = new Array remaining = prodCoffeeFiles.length
-    util.log "Appending #{prodCoffeeFiles.length} files to #{prodTargetCoffeeFile}"
-    
+    appContents = new Array
+    finished = new Array prodCoffeeFiles.length
+
+    # compile separate coffee files first
     for file, index in prodCoffeeFiles then do (file, index) ->
-        fs.readFile "#{prodSrcCoffeeDir}/#{file}.coffee"
+        exec "coffee #{prodCoffeeOpts} #{prodSrcCoffeeDir}/#{file}.coffee", (err, stdout, stderr) ->
+            if err then handleError err else read file, index
+
+    read = (file, index) ->
+        fs.readFile "#{prodTargetJsDir}/#{file}.js"
                   , 'utf8'
                   , (err, fileContents) ->
             handleError(err) if err
-            
             appContents[index] = fileContents
-            util.log "[#{index + 1}] #{file}.coffee"
-            process() if --remaining is 0
+            util.log "[#{index + 1}] Compiled #{file}.js"
+            finished[index] = true
+            process() if done()
+
+    done = ->
+        (i for i in finished when i?).length == prodCoffeeFiles.length
 
     process = ->
-        fs.writeFile prodTargetCoffeeFile
+        fs.writeFile prodTargetJsFile
                    , appContents.join('\n\n')
                    , 'utf8'
                    , (err) ->
             handleError(err) if err
-            
-            exec "coffee #{prodCoffeeOpts}", (err, stdout, stderr) ->
-                handleError(err) if err
-                message = "Compiled #{prodTargetJsFile}"
-                util.log message
-                displayNotification message
-                fs.unlink prodTargetCoffeeFile, (err) -> handleError(err) if err
-                invoke 'uglify'                
+            message = "Written #{prodTargetJsFile}"
+            util.log message
+            displayNotification message
+
+            for file in prodCoffeeFiles then do (file) ->
+                fs.unlink "#{prodTargetJsDir}/#{file}.js", (err) -> handleError(err) if err
+            invoke 'uglify'                
 
 task 'watch:test', 'Watch test specs and build changes', ->
     invoke 'build:test'
@@ -100,7 +107,7 @@ task 'uglify', 'Minify and obfuscate', ->
         final_code = pro.gen_code ast # compressed code here
     
         fs.writeFile prodTargetJsMinFile, final_code
-        fs.unlink prodTargetJsFile, (err) -> handleError(err) if err
+        # fs.unlink prodTargetJsFile, (err) -> handleError(err) if err
         
         message = "Uglified #{prodTargetJsMinFile}"
         util.log message
